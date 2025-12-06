@@ -1,5 +1,13 @@
 `timescale 1ns/1ps
 
+`ifdef BEHAVIOUR
+`include "load.v"
+`include "special.v"
+`include "normalize.v"
+`include "iterate.v"
+`include "pack.v"
+`include "sqrt2_b.sv"
+
 module sqrt2_tb;
     reg         clk;
     reg         enable;
@@ -174,5 +182,6 @@ module sqrt2_tb;
         #500000;
         $fatal(2, "Simulation timeout");
     end
+
 
 endmodule
