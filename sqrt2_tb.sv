@@ -7,6 +7,11 @@
 `include "iterate.v"
 `include "pack.v"
 `include "sqrt2_b.sv"
+`elsif STRUCTURAL
+`else
+`error "!mode"
+`endif
+
 
 module sqrt2_tb;
     reg         clk;
@@ -185,3 +190,4 @@ module sqrt2_tb;
 
 
 endmodule
+
