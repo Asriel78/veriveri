@@ -1,0 +1,169 @@
+`timescale 1ns/1ps
+
+`include "helper_modules.v"
+`include "basic_modules.v"
+`include "load_s.v"
+`include "special_s.v"
+`include "normalize_s.v"
+`include "iterate_s.v"
+`include "pack_s.v"
+
+module sqrt2 (
+    inout  wire [15:0] IO_DATA,
+    output wire        IS_NAN,
+    output wire        IS_PINF,
+    output wire        IS_NINF,
+    output wire        RESULT,
+    input  wire        CLK,
+    input  wire        ENABLE
+);
+
+    wire        load_sign;
+    wire [4:0]  load_exp;
+    wire [9:0]  load_mant;
+    wire        load_valid;
+
+    load load_inst (
+        .clk(CLK),
+        .enable(ENABLE),
+        .data(IO_DATA),
+        .sign(load_sign),
+        .exp(load_exp),
+        .mant(load_mant),
+        .valid(load_valid)
+    );
+
+    wire        spec_valid;
+    wire        spec_is_nan;
+    wire        spec_is_pinf;
+    wire        spec_is_ninf;
+    wire        spec_is_normal;
+    wire        spec_is_subnormal;
+    wire        spec_sign;
+    wire [4:0]  spec_exp;
+    wire [9:0]  spec_mant;
+
+    special special_inst (
+        .clk(CLK),
+        .enable(ENABLE),
+        .valid(load_valid),
+        .sign_in(load_sign),
+        .exp_in(load_exp),
+        .mant_in(load_mant),
+        .s_valid(spec_valid),
+        .is_nan(spec_is_nan),
+        .is_pinf(spec_is_pinf),
+        .is_ninf(spec_is_ninf),
+        .is_normal(spec_is_normal),
+        .is_subnormal(spec_is_subnormal),
+        .sign_out(spec_sign),
+        .exp_out(spec_exp),
+        .mant_out(spec_mant)
+    );
+
+    wire        norm_valid;
+    wire        norm_is_num;
+    wire        norm_is_nan;
+    wire        norm_is_pinf;
+    wire        norm_is_ninf;
+    wire        norm_sign;
+    wire signed [6:0] norm_exp;
+    wire [10:0] norm_mant;
+    
+    normalize normalize_inst (
+        .clk(CLK),
+        .enable(ENABLE),
+        .s_valid(spec_valid),
+        .sign_in(spec_sign),
+        .exp_in(spec_exp),
+        .mant_in(spec_mant),
+        .is_normal_in(spec_is_normal),
+        .is_subnormal_in(spec_is_subnormal),
+        .is_nan_in(spec_is_nan),
+        .is_pinf_in(spec_is_pinf),
+        .is_ninf_in(spec_is_ninf),
+        .n_valid(norm_valid),
+        .is_num(norm_is_num),
+        .is_nan(norm_is_nan),
+        .is_pinf(norm_is_pinf),
+        .is_ninf(norm_is_ninf),
+        .sign_out(norm_sign),
+        .exp_out(norm_exp),
+        .mant_out(norm_mant)
+    );
+
+    wire        iter_valid;
+    wire        iter_result;
+    wire        iter_sign;
+    wire signed [6:0] iter_exp;
+    wire [10:0] iter_mant;
+    wire        iter_is_nan;
+    wire        iter_is_pinf;
+    wire        iter_is_ninf;
+    
+    iterate iterate_inst (
+        .clk(CLK),
+        .enable(ENABLE),
+        .n_valid(norm_valid),
+        .is_nan_in(norm_is_nan),
+        .is_pinf_in(norm_is_pinf),
+        .is_ninf_in(norm_is_ninf),
+        .is_num(norm_is_num),
+        .sign_in(norm_sign),
+        .mant_in(norm_mant),
+        .exp_in(norm_exp),
+        .it_valid(iter_valid),
+        .result(iter_result),
+        .sign_out(iter_sign),
+        .exp_out(iter_exp),
+        .mant_out(iter_mant),
+        .is_nan_out(iter_is_nan),
+        .is_pinf_out(iter_is_pinf),
+        .is_ninf_out(iter_is_ninf)
+    );
+
+    wire        pack_valid;
+    wire        pack_result;
+    wire [15:0] pack_data;
+    wire        pack_is_nan;
+    wire        pack_is_pinf;
+    wire        pack_is_ninf;
+    
+    pack pack_inst (
+        .clk(CLK),
+        .enable(ENABLE),
+        .it_valid(iter_valid),
+        .sign_in(iter_sign),
+        .exp_in(iter_exp),
+        .mant_in(iter_mant),
+        .is_nan_in(iter_is_nan),
+        .is_pinf_in(iter_is_pinf),
+        .is_ninf_in(iter_is_ninf),
+        .result_in(iter_result),
+        .p_valid(pack_valid),
+        .result_out(pack_result),
+        .out_data(pack_data),
+        .is_nan_out(pack_is_nan),
+        .is_pinf_out(pack_is_pinf),
+        .is_ninf_out(pack_is_ninf)
+    );
+
+
+    wire drive_output;
+    assign drive_output = pack_valid & pack_result;
+    assign IO_DATA = drive_output ? pack_data : 16'hzzzz;
+
+    wire result_valid;
+    and(result_valid, pack_result, pack_valid);
+    assign RESULT  = result_valid;
+    
+    wire nan_valid, pinf_valid, ninf_valid;
+    and(nan_valid, pack_is_nan, pack_valid);
+    and(pinf_valid, pack_is_pinf, pack_valid);
+    and(ninf_valid, pack_is_ninf, pack_valid);
+    
+    assign IS_NAN  = nan_valid;
+    assign IS_PINF = pinf_valid;
+    assign IS_NINF = ninf_valid;
+
+endmodule
