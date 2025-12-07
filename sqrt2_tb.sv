@@ -1,11 +1,6 @@
 `timescale 1ns/1ps
 
 `ifdef BEHAVIOUR
-`include "load.v"
-`include "special.v"
-`include "normalize.v"
-`include "iterate.v"
-`include "pack.v"
 `include "sqrt2_b.sv"
 `elsif STRUCTURAL
 `else
@@ -190,4 +185,5 @@ module sqrt2_tb;
 
 
 endmodule
+
 
